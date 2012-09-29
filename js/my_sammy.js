@@ -636,7 +636,7 @@ Handlebars.registerHelper('attachNames', function(items) {
             this.id = "main";
             this.render('templates/main.mustache', {"contentId":"main"})
                 .replace("#main");
-	    this.load("/json/content?id=main", {"json":true,})
+	    this.load("/json/content?id=main", {"json":true})
 		.render('templates/main.mustache')
 		.replace('#main')
 		.then(function () {
