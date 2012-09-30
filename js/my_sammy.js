@@ -74,17 +74,6 @@ Handlebars.registerHelper('attachNames', function(items) {
 });
 
 
-        function newAlert() {
-            var oldTitle = document.title;
-            var msg = "Новый заказ!";
-            var timeoutId = setInterval(function() {
-                document.title = document.title == msg ? ' ' : msg;
-            }, 2000);
-            window.onmousemove = function() {
-                document.title = oldTitle;
-                window.onmousemove = null;
-            };
-        }
 
         var current_user = false;
 
@@ -99,7 +88,6 @@ Handlebars.registerHelper('attachNames', function(items) {
 		if (data == "fail") {
 		    login.clear("user");
                 }
-	    });
             if (login.get('user')) {
                 $('#menu_login').hide();
                 $('#menu_user').show();
@@ -110,6 +98,8 @@ Handlebars.registerHelper('attachNames', function(items) {
                 $('#menu_user').hide();
                 $('.admin-only').hide();
             }
+
+	    });
 
         };
 
@@ -140,7 +130,7 @@ Handlebars.registerHelper('attachNames', function(items) {
                             cat = categories[i];
                         }
                     }
-                    this.load('/json/tagscategory?category=' + category, {"json":true})
+                    this.load('/json/tagscategory?category=' + encodeURIComponent(category), {"json":true})
                         .then(function(tags) {
                             context.render('/templates/category_content.mustache',
                                            {"catTitle":cat.catTitle,
@@ -151,7 +141,7 @@ Handlebars.registerHelper('attachNames', function(items) {
                                 .replace('#premain');
                         });
 
-	            this.load(link + '?category=' + category, {"json":true})
+	            this.load(link + '?category=' + encodeURIComponent(category), {"json":true})
 		        .then(function(items) {
 		            $("#main").fadeIn('fast', function() {
                                 context.renderEach('templates/item.mustache',items)
@@ -267,6 +257,7 @@ Handlebars.registerHelper('attachNames', function(items) {
                 //history.back();
                 //context.next(JSON.parse(response));
             });
+            this.redirect("#/edit/" + id);
 	});
 
 	this.get("#/deletereq/:id", function() {
@@ -448,7 +439,11 @@ Handlebars.registerHelper('attachNames', function(items) {
                     if (items == null)
                     {
                         this.render('templates/main.mustache', {"contentId":page})
-                            .replace("#main");
+                            .replace("#main")
+		            .then(function () {
+                                checkLoggedIn();
+	                    });
+
                     } else {
 		        this.render('templates/main.mustache',items)
 		            .replace('#main')
@@ -457,6 +452,7 @@ Handlebars.registerHelper('attachNames', function(items) {
 	                    });
                     }
                 });
+
         });
 
         this.get("#/additem", function() {
@@ -634,6 +630,7 @@ Handlebars.registerHelper('attachNames', function(items) {
 
             var context = this;
             this.id = "main";
+            this.contentId = "main";
             this.render('templates/main.mustache', {"contentId":"main"})
                 .replace("#main");
 	    this.load("/json/content?id=main", {"json":true})
