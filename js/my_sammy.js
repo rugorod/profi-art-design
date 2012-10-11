@@ -18,6 +18,10 @@
 
 
 
+        this.bind('flash', function(e, message) {
+            $('#flashMsg').html(message);
+            $('#flash').fadeIn('slow').delay(5000).fadeOut('slow');
+        });
 
 
 // based on the `#each` helper, requires jQuery (for jQuery.extend)
@@ -132,28 +136,28 @@ Handlebars.registerHelper('attachNames', function(items) {
                     }
                     this.load('/json/tagscategory?category=' + encodeURIComponent(category), {"json":true})
                         .then(function(tags) {
-                            context.render('/templates/category_content.mustache',
-                                           {"catTitle":cat.catTitle,
-                                            "tags":tags,
-                                            "catId":cat.catId,
-                                            "catContent":cat.catContent,
-                                            "catName":category})
-                                .replace('#premain');
+	                    this.load(link + '?category=' + encodeURIComponent(category), {"json":true})
+		                .then(function(items) {
+		                    $("#main").fadeIn('fast', function() {
+                                        context.render('templates/category.mustache',
+                                                       {"items":items,
+                                                        "tags":tags,
+                                                        "catTitle":cat.catTitle,
+                                                        "tags":tags,
+                                                        "catId":cat.catId,
+                                                        "catContent":cat.catContent,
+                                                        "catName":category})
+			                    .replace('#main')
+			                    .then(function () {
+				                $("#main").fadeIn('fast');
+	                                        $('.nav li').removeClass('active');
+				                $('#cat_' + category).addClass('active');
+                                                checkLoggedIn();
+	                                    });
+		                    });
+	                        });
                         });
 
-	            this.load(link + '?category=' + encodeURIComponent(category), {"json":true})
-		        .then(function(items) {
-		            $("#main").fadeIn('fast', function() {
-                                context.renderEach('templates/item.mustache',items)
-			            .replace('#main')
-			            .then(function () {
-				        $("#main").fadeIn('fast');
-	                                $('.nav li').removeClass('active');
-				        $('#cat_' + category).addClass('active');
-                                        checkLoggedIn();
-	                            });
-		            });
-	                });
 	        });
         });
 
@@ -163,46 +167,50 @@ Handlebars.registerHelper('attachNames', function(items) {
 	    var tag = this.params['tag'];
             var link = "/json/categorytag";
             if (this.params['sort']) {
-                link = "/json/categorytag"
-            }
-            var categories = cache.get("categories");
-            var cat = {};
-            for (i in categories) {
-                if (categories[i].catName == category) {
-                    cat = categories[i];
-                }
+                link = "/json/categorytag";
             }
             $('#main').empty();
-            this.load('/json/tagscategory?category=' + category, {"json":true})
-                .then(function(tags) {
-                    context.render('templates/category_content.mustache',
-                                   {"catTitle":cat.catTitle,
-                                    "tags":tags,
-                                    "catId":cat.catId,
-                                    "catContent":cat.catContent,
-                                    "catName":category})
-                        .replace('#premain');
-                });
+            $('#premain').empty();
+            this.load("/json/categories", {"json":true})
+		.then(function(categories) {
+                    var cat = {};
+                    for (i in categories) {
+                        if (categories[i].catName == category) {
+                            cat = categories[i];
+                        }
+                    }
+                    this.load('/json/tagscategory?category=' + encodeURIComponent(category), {"json":true})
+                        .then(function(tags) {
+	                    this.load(link + '?category=' + encodeURIComponent(category)
+                                      + "&tag=" + encodeURIComponent(tag), {"json":true})
+		                .then(function(items) {
+		                    $("#main").fadeIn('fast', function() {
+                                        context.render('templates/category.mustache',
+                                                       {"items":items,
+                                                        "tags":tags,
+                                                        "catTitle":cat.catTitle,
+                                                        "tags":tags,
+                                                        "catId":cat.catId,
+                                                        "catContent":cat.catContent,
+                                                        "catName":category})
+			                    .replace('#main')
+			                    .then(function () {
+				                $("#main").fadeIn('fast');
+	                                        $('.nav li').removeClass('active');
+				                $('#cat_' + category).addClass('active');
+                                                checkLoggedIn();
+	                                    });
+		                    });
+	                        });
+                        });
 
-	    this.load(link + '?category=' + category + "&tag=" + tag, {"json":true})
-		.then(function(items) {
-		    $("#main").fadeIn('fast', function() {
-                        context.renderEach('templates/item.mustache',items)
-			    .replace('#main')
-			    .then(function () {
-				$("#main").fadeIn('fast');
-	                        $('.nav li').removeClass('active');
-				$('#cat_' + category).addClass('active');
-                                checkLoggedIn();
-	                    });
-		    });
-	    });
+	        });
 	});
 
 	this.around(function(callback) {
 	    var context = this;
             app.clearTemplateCache();
-	    $(".alert").alert('close');
+//	    $(".alert").alert('close');
 	    $('.telephone').text("27-87-28");
 	    $('.nav li').removeClass('active');
 	    this.categories = cache.get("categories");
@@ -295,11 +303,22 @@ Handlebars.registerHelper('attachNames', function(items) {
 		});
         });
 
-	this.post("#/edit", function() {
+        this.post("/json/edit", function(){
+            var context = this;
 	    $.post("/json/edit", this.params, function(response) {
-//             context.next(JSON.parse(response));
-           });
-	    this.redirect("#/");
+                context.trigger('flash', "Запись обновлена...");
+                app.runRoute("get", "#/edit/" + context.params['id']);
+                //             context.next(JSON.parse(response));
+            });
+        });
+	this.post("#/edit", function() {
+            var context = this;
+	    $.post("/json/edit", this.params, function(response) {
+                context.trigger('flash', "Запись обновлена...");
+                app.runRoute("get", "#/edit/" + context.params['id']);
+                //             context.next(JSON.parse(response));
+            });
+//	    this.redirect("#/");
 	});
 
         this.get("#/edit_category/:id", function() {
@@ -457,18 +476,39 @@ Handlebars.registerHelper('attachNames', function(items) {
 
         this.get("#/additem", function() {
             var context = this;
+
             $('#premain').empty();
+            this.trigger('update-catregories');
 	    this.render('templates/additem.template')
 		.replace('#main');
+            // FIXME: update trigger before render
         });
 
-        this.post("#/additem", function() {
+        this.post("/json/additem", function(){
             var context = this;
             var category = this.params.category;
-            $.post('/json/additem', this.params, function(data) {
-                // FIXME: добавить уведомление
-                alert(data);
-                context.redirect("#/category/" + category);
+
+            $("#addform").ajaxSubmit({
+                url: '/json/additem',
+                success: function() {
+                    context.trigger('flash', "Запись добавлена.");
+                    context.redirect("#/category/" + category);
+                    app.runRoute("get", "#/category/" + category);
+                }
+            });
+        });
+
+        this.post("#/additem", function(){
+            var context = this;
+            var category = this.params.category;
+
+            $("#addform").ajaxSubmit({
+                url: '/json/additem',
+                success: function() {
+                    context.trigger('flash', "Запись добавлена.");
+                    context.redirect("#/category/" + category);
+                    app.runRoute("get", "#/category/" + category);
+                }
             });
         });
 
